@@ -9,7 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE,
                       # warning = FALSE,
                       # message = FALSE,
-                      fig.align = "center")
+                      fig.align = "center",
+                      fig.height = 8)
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse)
 
@@ -77,12 +78,15 @@ data_long <-
   mutate('sample_ID' = ID) |>
   
   separate(col = 'ID',
-           into = c('donor', 'donor_ID', 'treatment'),
+           into = c('donor', 'donor_ID', 'treatment', 'treatment_2'),
            sep = ' ') |>
+
+  mutate(treatment_2 = case_when(grepl('ono', treatment_2) ~ 'mono',
+                                 .default = treatment_2),
+           donor_ID = as.factor(donor_ID),
+         treatment = paste(treatment, treatment_2, sep = ' ')) |>
   
-  mutate(donor_ID = as.factor(donor_ID)) |>
-  
-  select(sample_ID, donor_ID, reads, gene)
+  select(sample_ID, donor_ID, treatment, gene, reads)
 
 tibble(data_long)
 
@@ -91,23 +95,33 @@ tibble(data_long)
 
 ggplot(data = data_long,
        mapping = aes(x = sample_ID)) +
+          
   
-  geom_col(data = data_long |> group_by(sample_ID, donor_ID) |> summarize('sum' = sum(reads)),
+  geom_col(data = data_long |> group_by(sample_ID, treatment) |> summarize('sum' = sum(reads)),
            mapping = aes(y = sum,
-                         fill = donor_ID)) +
+                         fill = factor(treatment))) +
+                                       #levels = 'pDC NA', 'CD1c+ mDC', 'SLAN DC', 'CD14+ mono'))) +
   
   labs(x = 'Sample ID',
        y = 'Total Reads',
        title = 'Assessing the quality of the dataset using number of reads',
        caption = 'Data from refine.bio\nAccession ID: SRP074247') +
   
-  theme(plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 16),
+        axis.text.x = element_text(angle = 90, 
+                                   vjust = 0.5, 
+                                   hjust = 1),
+        axis.title.y = element_text(size = 14),
+        axis.title.x = element_text(size = 14),
         legend.position = 'none',
         plot.caption = element_text(face = 'italic')) +
   
-  scale_fill_manual(values = c('28' = '#FA8633',
-                               '36' = '#1C6C7F',
-                               '97' = '#9A6DA3'))
+  scale_fill_manual(values = c('pDC NA' = '#FA8633',
+                               'CD1c+ mDC' = '#1C6C7F',
+                               'SLAN DC' = '#9A6DA3',
+                               'CD14+ mono' = '#CEEDA1')) +
+  
+  scale_y_continuous(expand = c(0.01, 0))
 ```
 
