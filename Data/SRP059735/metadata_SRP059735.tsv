@@ -1,0 +1,11 @@
+refinebio_accession_code	experiment_accession	refinebio_age	refinebio_cell_line	refinebio_compound	refinebio_disease	refinebio_disease_stage	refinebio_genetic_information	refinebio_organism	refinebio_platform	refinebio_processed	refinebio_processor_id	refinebio_processor_name	refinebio_processor_version	refinebio_race	refinebio_sex	refinebio_source_archive_url	refinebio_source_database	refinebio_specimen_part	refinebio_subject	refinebio_time	refinebio_title	refinebio_treatment
+SRR2072599	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 97 pDC	
+SRR2072600	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 97 CD1c+ mDC	
+SRR2072601	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 97 SLAN DC	
+SRR2072602	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 97 CD14+ mono	
+SRR2072603	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 28 pDC	
+SRR2072604	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 28 CD1c+ mDC	
+SRR2072605	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 28 SLAN DC	
+SRR2072606	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 28 CD14+ Mono	
+SRR2072608	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 36 CD1c+ mDC	
+SRR2072609	SRP059735							HOMO_SAPIENS	Illumina HiSeq 2500 (IlluminaHiSeq2500)	True	61	Tximport	v1.3.4				SRA				Donor 36 SLAN DC	
