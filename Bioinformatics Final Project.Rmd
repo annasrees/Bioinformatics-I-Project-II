@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
                       fig.height = 8)
 
-pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse)
+pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats)
 
 theme_set(theme_bw())
 ```
@@ -39,7 +39,7 @@ meta |>
   mutate('sample' = refinebio_accession_code,
          'title' = as.factor(refinebio_title)) |>
   separate(col = refinebio_title,
-           into = c('donor', 'donor_ID', 'treatment'),
+           into = c('donor', 'donor_ID', 'type'),
            sep = ' ') |>
   select(sample, title, donor_ID)
   
@@ -63,7 +63,7 @@ identical(colnames(data), meta_clean$Sample)
 ```{r change column names}
 
 colnames(data) <- c('gene', 'Donor 97 pDC', 'Donor 97 CD1c+ mDC', 'Donor 97 SLAN DC', 'Donor 97 CD14+ mono', 'Donor 28 pDC', 'Donor 28 CD1c+ mDC', 
-                    'Donor 28 SLAN DC', 'Donor 28 CD14+ Mono', 'Donor 36 CD1c+ mDC', 'Donor 36 SLAN DC')
+                    'Donor 28 SLAN DC', 'Donor 28 CD14+ mono', 'Donor 36 CD1c+ mDC', 'Donor 36 SLAN DC')
 
 ```
 
@@ -78,34 +78,43 @@ data_long <-
   mutate('sample_ID' = ID) |>
   
   separate(col = 'ID',
-           into = c('donor', 'donor_ID', 'treatment', 'treatment_2'),
+           into = c('donor', 'donor_ID', 'type', 'type_2'),
            sep = ' ') |>
 
-  mutate(treatment_2 = case_when(grepl('ono', treatment_2) ~ 'mono',
-                                 .default = treatment_2),
-           donor_ID = as.factor(donor_ID),
-         treatment = paste(treatment, treatment_2, sep = ' ')) |>
+  #mutate(treatment_2 = case_when(grepl('ono', treatment_2) ~ 'mono',
+                                 #.default = treatment_2),
+          mutate( donor_ID = as.factor(donor_ID),
+         type = as.factor(paste(type, type_2, sep = ' '))) |>
   
-  select(sample_ID, donor_ID, treatment, gene, reads)
+  select(sample_ID, donor_ID, type, gene, reads)
 
 tibble(data_long)
 
 ```
 ```{r check quality}
 
+sum_reads <-
+  data_long |> 
+  group_by(type, sample_ID) |> 
+  summarize('sum' = sum(reads)) |>
+  ungroup()
+
 ggplot(data = data_long,
-       mapping = aes(x = sample_ID)) +
+       mapping = aes(x = factor(sample_ID, levels = c('Donor 97 pDC', 'Donor 28 pDC', 'Donor 97 CD1c+ mDC',
+                                                      'Donor 28 CD1c+ mDC', 'Donor 36 CD1c+ mDC', 'Donor 97 SLAN DC',
+                                                      'Donor 28 SLAN DC', 'Donor 36 SLAN DC', 'Donor 97 CD14+ mono', 
+                                                      'Donor 28 CD14+ mono')))) +
           
-  
-  geom_col(data = data_long |> group_by(sample_ID, treatment) |> summarize('sum' = sum(reads)),
+  geom_col(data = sum_reads,
            mapping = aes(y = sum,
-                         fill = factor(treatment))) +
-                                       #levels = 'pDC NA', 'CD1c+ mDC', 'SLAN DC', 'CD14+ mono'))) +
+                         fill = type),
+           color = 'black') +
   
   labs(x = 'Sample ID',
        y = 'Total Reads',
        title = 'Assessing the quality of the dataset using number of reads',
-       caption = 'Data from refine.bio\nAccession ID: SRP074247') +
+       caption = 'Data from refine.bio\nAccession ID: SRP074247',
+       fill = 'Sample type') +
   
   theme(plot.title = element_text(hjust = 0.5,
                                   size = 16),
@@ -114,7 +123,7 @@ ggplot(data = data_long,
                                    hjust = 1),
         axis.title.y = element_text(size = 14),
         axis.title.x = element_text(size = 14),
-        legend.position = 'none',
+        legend.position = 'right',
         plot.caption = element_text(face = 'italic')) +
   
   scale_fill_manual(values = c('pDC NA' = '#FA8633',
@@ -124,4 +133,51 @@ ggplot(data = data_long,
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
+```{r boxplot}
 
+ggplot(data = sum_reads |> group_by(type) |> summarize('sum' = sum(sum)),
+       mapping = aes(x = sum, 
+                     y = type,
+                     fill = type)) +
+  
+  geom_boxplot(data = data_long |> group_by(reads),
+               mapping = aes(x = log2(reads))) +
+  
+  
+  scale_fill_manual(values = c('pDC NA' = '#FA8633',
+                               'CD1c+ mDC' = '#1C6C7F',
+                               'SLAN DC' = '#9A6DA3',
+                               'CD14+ mono' = '#CEEDA1')) +
+  
+  labs(title = 'Number of reads by sample type',
+       x = 'log2(reads)',
+       y = NULL,
+       fill = 'Sample type') +
+  
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 16))
+         
+         
+         
+         
+         
+         
+         
+         
+         
+        
+```
+```{r t test}
+
+# TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
+```
+```{r low abundance genes}
+sum_genes <-
+  data_long |>
+  group_by(gene) |>
+  summarize('sum' = sum(reads))
+
+ggplot(data = sum_genes,
+       mapping = aes(x = log2(sum))) +
+  
+  geom_line()
