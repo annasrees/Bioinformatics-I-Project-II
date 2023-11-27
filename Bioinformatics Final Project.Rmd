@@ -192,13 +192,11 @@ ggplot(data = sum_by_gene,
 
 high_abundance_genes <-
   data |>
-  filter(if_all('Donor 97 pDC':'Donor 36 SLAN DC', ~ !.x  %in% 0))
+  filter(if_any(-gene, ~ !.x  %in% 0)) # why isn't it getting rid of some of the rows with zero
 
 high_abundance_sum <- 
-  high_abundance_genes |>
-  pivot_longer(cols = -gene,
-               names_to = 'ID',
-               values_to = 'reads') |>
+  data_long |>
+
   group_by(gene) |> 
   summarize('sum' = sum(reads)) |>
   ungroup()
@@ -221,21 +219,19 @@ ggplot(data = high_abundance_sum,
 ```
 ```{r distribution per sample}
 
-# TODO this is where we at
-ggplot(data = data_long,
+ggplot(data = high_abundance_genes,
        mapping = aes(x = factor(sample_ID, levels = c('Donor 97 pDC', 'Donor 28 pDC', 'Donor 97 CD1c+ mDC',
                                                       'Donor 28 CD1c+ mDC', 'Donor 36 CD1c+ mDC', 'Donor 97 SLAN DC',
                                                       'Donor 28 SLAN DC', 'Donor 36 SLAN DC', 'Donor 97 CD14+ mono', 
                                                       'Donor 28 CD14+ mono')))) +
           
-  geom_boxplot(data = sum_by_sample,
-           mapping = aes(y = sum,
-                         fill = type),
-           color = 'black') +
+  geom_boxplot(mapping = aes(y = log2(reads),
+                             fill = type),
+              color = 'black') +
   
   labs(x = 'Sample ID',
-       y = 'Total Reads',
-       title = 'Assessing the quality of the dataset using number of reads',
+       y = 'Log 2 transformed counts per gene',
+       title = 'Number of reads per sample',
        caption = 'Data from refine.bio\nAccession ID: SRP074247',
        fill = 'Sample type') +
   
