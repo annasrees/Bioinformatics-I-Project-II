@@ -26,7 +26,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
                       fig.height = 8)
 
-pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr, usedist)
+pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr, usedist, gridExtra)
 
 theme_set(theme_bw())
 ```
@@ -59,11 +59,11 @@ meta |>
 
 for(i in 1:nrow(meta_clean)){
   if(grepl('Mock', meta_clean$title[i])){
-    meta_clean$treatment[i] <- 'Mock'}
+    meta_clean$treatment[i] <- 'mock'}
   if(grepl('with Reovirus', meta_clean$title[i])){
-    meta_clean$treatment[i] <- 'Reovirus'}
+    meta_clean$treatment[i] <- 'reovirus'}
   if(grepl('Mutant', meta_clean$title[i])){
-    meta_clean$treatment[i] <- 'Mutant'}
+    meta_clean$treatment[i] <- 'mutant'}
 }
 
 for(i in 1:nrow(meta_clean)){
@@ -104,7 +104,7 @@ This is renaming the columns created above for treatment type and replicate numb
 
 ```{r change column names}
 
-colnames(data) <- paste(meta_clean$treatment, meta_clean$replicate, sep = " ")
+colnames(data) <- paste(meta_clean$treatment, meta_clean$replicate, sep = "_")
 
 tibble(data)
 ```
@@ -130,7 +130,7 @@ data_long <-
 
   separate(col = 'ID',
            into = c('treatment', 'replicate'),
-           sep = ' ') |>
+           sep = '_') |>
   
   mutate(treatment = as.factor(treatment),
          replicate = as.factor(replicate)) |>
@@ -142,9 +142,9 @@ tibble(data_long)
 ```
 
 ```{r colors}
-colors <- c('Mock' = '#FA8633',
-            'Mutant' = '#1C6C7F',
-            'Reovirus' = '#9A6DA3')
+colors <- c('mock' = '#FA8633',
+            'mutant' = '#1C6C7F',
+            'reovirus' = '#9A6DA3')
 ```
 ## Checking the quality of the dataset
 For gene expression profiling experiments, we hope for between 10-25 million reads per sample. Below is a bar plot showing the sum of the total reads for each sample
@@ -241,30 +241,25 @@ ggplot(data = sum_by_gene,
 ```
 ```{r exclude low abundance}
 
-#high_abundance_genes <-
-  #data |>
-  #filter_if(is.numeric, all_vars((.) != 0))
-  #filter(if_any(-gene, ~ !.x  %in% 0)) # why isn't it getting rid of some of the rows with zero
-
-high_abundance_genes <-
+high_abun_genes <-
   data_long |>
   pivot_wider(names_from = gene,
               values_from = reads) |>
   select(where(~ all(. != 0)))
 
-high_abundance_long <- 
-  high_abundance_genes |>
+high_abun_long <- 
+  high_abun_genes |>
   pivot_longer(cols = -c(sample, treatment, replicate),
                names_to = 'gene',
                values_to = 'reads')
 
-high_abundance_sum <-
-  high_abundance_long |>
+high_abun_sum <-
+  high_abun_long |>
   group_by(gene) |> 
   summarize('sum' = sum(reads)) |>
   ungroup()
 
-ggplot(data = high_abundance_sum,
+ggplot(data = high_abun_sum,
        mapping = aes(x = log2(sum))) +
   
   geom_histogram(bins = 15,
@@ -282,7 +277,9 @@ ggplot(data = high_abundance_sum,
 ```
 ```{r distribution per sample}
 
-ggplot(data = high_abundance_long,
+non_normal_graph <-
+  
+ggplot(data = high_abun_long,
        mapping = aes(x = sample)) +
           
   geom_boxplot(mapping = aes(y = log2(reads),
@@ -291,7 +288,7 @@ ggplot(data = high_abundance_long,
   
   labs(x = 'Sample ID',
        y = 'Log 2 transformed counts per gene',
-       title = 'Number of reads per sample',
+       title = 'Non-normalized counts',
        caption = 'Data from refine.bio\nAccession ID: SRP074247',
        fill = 'Sample type') +
   
@@ -308,46 +305,126 @@ ggplot(data = high_abundance_long,
   scale_fill_manual(values = colors) +
   
   scale_y_continuous(expand = c(0.01, 0))
+
+non_normal_graph
 ```
 
 ```{r}
-sample_names <- c('Mock 1', 'Mock 2', 'Mock 3', 'Mutant 1', 'Mutant 2', 'Mutant 3', 'Reovirus 1', 'Reovirus 2', 'Reovirus 3')
+sample_names <- c('mock_1', 'mock_2', 'mock_3', 'mutant_1', 'mutant_2', 'mutant_3', 'reovirus_1', 'reovirus_2', 'reovirus_3')
 ```
 
 
 ```{r sample comparison}
-high_abundance_log2 <-
-  high_abundance_long |> 
+high_abun_log2 <-
+  high_abun_long |> 
   mutate(reads = log2(reads)) |>
   pivot_wider(names_from = gene,
-              values_from = reads) |>
-  select(-c(treatment, replicate))
+              values_from = reads)
 
-data_dist <- dist(high_abundance_log2, method = "euclidean")
-data_dist <- dist_setNames(data_dist, c('Mock 1', 'Mock 2', 'Mock 3', 'Mutant 1', 'Mutant 2', 'Mutant 3', 'Reovirus 1', 'Reovirus 2', 'Reovirus 3'))
+high_abun_log2_flipped <-
+  data.frame(t(high_abun_log2 |> select(-c(treatment, replicate)))) |> janitor::row_to_names(row_number = 1) |>
+  mutate_all(function(x) as.numeric(as.character(x)))
 
 
-plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+data_dist <- dist(high_abun_log2, method = "euclidean")
+data_dist <- dist_setNames(data_dist, sample_names)
+
+tree_non_norm <-
+  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+
+tree_non_norm
 ```
 
-```{r normalizing}
+```{r correction factors}
 
-sample_medians <- as.numeric(apply(t(high_abundance_log2), 2, median))
+sample_medians <- (apply(high_abun_log2_flipped, 2, median))
 
 grand_median <- mean(sample_medians)
 
 correction_factors <- grand_median - sample_medians
 
-normalizing <- data.frame(sample_names, correction_factors)
+corrections <- data.frame(correction_factors)
 
-normalizing
+corrections
 ```
 
-```{r}
+```{r normalizing}
+
+norm_data <- high_abun_log2_flipped
+
+for(i in 1:ncol(norm_data)){
+  norm_data[,i] <- high_abun_log2_flipped[,i] + corrections$correction_factors[i]
+}
 
 ```
 
+```{r pivoting normalized data}
 
+norm_data_long <-
+  norm_data |> rownames_to_column('gene') |>
+  pivot_longer(cols = -gene,
+               names_to = 'ID',
+               values_to = 'normalized_reads') |>
+  
+  mutate('sample' = ID) |>
+
+  separate(col = 'ID',
+           into = c('treatment', 'replicate'),
+           sep = '_') |>
+  
+  mutate(treatment = as.factor(treatment),
+         replicate = as.factor(replicate)) |>
+  
+  select(sample, treatment, replicate, gene, normalized_reads)
+```
+
+```{r normalized graph}
+
+normal_graph <-
+  
+ggplot(data = norm_data_long,
+       mapping = aes(x = sample)) +
+          
+  geom_boxplot(mapping = aes(y = normalized_reads,
+                             fill = treatment),
+              color = 'black') +
+  
+  labs(x = 'Sample ID',
+       y = 'Log 2 transformed counts per gene',
+       title = 'Normalized counts',
+       caption = 'Data from refine.bio\nAccession ID: SRP074247',
+       fill = 'Sample type') +
+  
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 16),
+        axis.text.x = element_text(angle = 90, 
+                                   vjust = 0.5, 
+                                   hjust = 1),
+        axis.title.y = element_text(size = 14),
+        axis.title.x = element_text(size = 14),
+        legend.position = 'right',
+        plot.caption = element_text(face = 'italic')) +
+  
+  scale_fill_manual(values = colors) +
+  
+  scale_y_continuous(expand = c(0.01, 0))
+
+normal_graph
+```
+
+```{r both boxplots}
+
+grid.arrange(non_normal_graph, normal_graph, ncol=2)
+```
+
+```{r normal tree}
+data_dist <- dist(high_abun_log2, method = "euclidean")
+data_dist <- dist_setNames(data_dist, sample_names)
+
+tree_non_norm <-
+  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+
+```
 
 
 words at the end!
