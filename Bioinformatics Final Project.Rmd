@@ -225,10 +225,10 @@ Rather than conducting a T-test to establish statistical significance, we will u
 ```{r ANOVA test}
 
 # TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
-model <- aov(data = data_clean, formula = mock_1 + mock_2 + mock_3 + mutant_1 + mutant_2 + mutant_3 + 
-               reovirus_1 + reovirus_2 + reovirus_3, projections = FALSE, qr = TRUE,
-    contrasts = NULL)
-summary(model)
+#model <- aov(data = data_long, formula = reads ~ treatment, projections = FALSE, qr = TRUE,
+#    contrasts = NULL)
+#summary(model)
+oneway.test(reads ~ treatment, data = data_long, var.equal = F)
 
 ```
 
