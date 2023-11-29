@@ -150,6 +150,8 @@ colors <- c('mock' = '#FA8633',
 ## Checking the quality of the dataset
 For gene expression profiling experiments, we hope for between 10-25 million reads per sample. Below is a bar plot showing the sum of the total reads for each sample
 
+We must find if there is a significant different in the total counts by treatment
+
 ```{r check quality}
 
 sum_by_sample <-
@@ -186,7 +188,7 @@ ggplot(data = data_long,
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
-
+Boxplot of the number of reads by sample type
 ```{r boxplot}
 
 ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)),
@@ -211,10 +213,15 @@ ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)
          
         
 ```
-
-```{r t test}
+Rather than conducting a T-test to establish statistical significance, we will use Analysis of variance (ANOVA). This is because we have 3 treatment variables, and a T test is only able to analyze significance between 2 variables.
+```{r ANOVA test}
 
 # TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
+model <- aov(data = data_clean, formula = mock_1 + mock_2 + mock_3 + mutant_1 + mutant_2 + mutant_3 + 
+               reovirus_1 + reovirus_2 + reovirus_3, projections = FALSE, qr = TRUE,
+    contrasts = NULL)
+summary(model)
+
 ```
 
 ```{r low abundance histogram}
