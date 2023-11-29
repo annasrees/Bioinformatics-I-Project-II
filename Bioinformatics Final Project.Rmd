@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
                       fig.height = 8)
 
-pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats)
+pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr)
 
 theme_set(theme_bw())
 ```
@@ -22,7 +22,7 @@ theme_set(theme_bw())
 
 ```{r read files}
 
-meta <- read.table(file = './Data/SRP059735/metadata_SRP059735.tsv',
+meta <- read.table(file = './Data/SRP074247/metadata_SRP074247.tsv',
            sep = '\t',
            header = TRUE)
 
@@ -37,34 +37,63 @@ meta_clean <-
 meta |>
   # Changing columns to choose based on how our dataset is stored
   mutate('sample' = refinebio_accession_code,
-         'title' = as.factor(refinebio_title)) |>
-  separate(col = refinebio_title,
-           into = c('donor', 'donor_ID', 'type'),
-           sep = ' ') |>
-  select(sample, title, donor_ID)
-  
+         'title' = refinebio_title,
+         'treatment' = refinebio_title,
+         'replicate' = refinebio_title,
+         )
+
+for(i in 1:nrow(meta_clean)){
+  if(grepl('Mock', meta_clean$title[i])){
+    meta_clean$treatment[i] <- 'Mock'}
+  if(grepl('with Reovirus', meta_clean$title[i])){
+    meta_clean$treatment[i] <- 'Reovirus'}
+  if(grepl('Mutant', meta_clean$title[i])){
+    meta_clean$treatment[i] <- 'Mutant'}
+}
+
+for(i in 1:nrow(meta_clean)){
+  if(grepl('1', meta_clean$title[i])){
+    meta_clean$replicate[i] <- '1'}
+  if(grepl('2', meta_clean$title[i])){
+    meta_clean$replicate[i] <- '2'}
+  if(grepl('3', meta_clean$title[i])){
+    meta_clean$replicate[i] <- '3'}
+}
+
+meta_clean <-
+  meta_clean |>
+  select(sample, title, treatment, replicate) |>
+  janitor::clean_names()
+
 meta_clean
 ```
 ```{r read counts matrix}
 # Read in counts matrix
-data <- read.table(file = './Data/SRP059735/SRP059735.tsv',
+data <- read.table(file = './Data/SRP074247/SRP074247.tsv',
            sep = '\t',
-           header = TRUE)
+           header = TRUE,
+           row.names = 1)
 
 tibble(data)
 ```
 ```{r check identical}
-# TODO: FIX THIS LATER
 
-identical(colnames(data), meta_clean$Sample)
+identical(colnames(data), meta_clean$sample)
 
 ```
 
 ```{r change column names}
 
-colnames(data) <- c('gene', 'Donor 97 pDC', 'Donor 97 CD1c+ mDC', 'Donor 97 SLAN DC', 'Donor 97 CD14+ mono', 'Donor 28 pDC', 'Donor 28 CD1c+ mDC', 
-                    'Donor 28 SLAN DC', 'Donor 28 CD14+ mono', 'Donor 36 CD1c+ mDC', 'Donor 36 SLAN DC')
+colnames(data) <- paste(meta_clean$treatment, meta_clean$replicate, sep = " ")
 
+tibble(data)
+```
+
+```{r add gene as column}
+
+data <- rownames_to_column(data, 'gene')
+
+tibble(data)
 ```
 
 ```{r pivot data}
@@ -75,40 +104,44 @@ data_long <-
                names_to = 'ID',
                values_to = 'reads') |>
   
-  mutate('sample_ID' = ID) |>
-  
+  mutate('sample' = ID) |>
+
   separate(col = 'ID',
-           into = c('donor', 'donor_ID', 'type', 'type_2'),
+           into = c('treatment', 'replicate'),
            sep = ' ') |>
   
-  mutate(donor_ID = as.factor(donor_ID),
-         type = as.factor(paste(type, type_2, sep = ' '))) |>
+  mutate(treatment = as.factor(treatment),
+         replicate = as.factor(replicate)) |>
   
-  select(sample_ID, donor_ID, type, gene, reads)
+  select(sample, treatment, replicate, gene, reads)
 
 tibble(data_long)
 
 ```
+
+```{r colors}
+colors <- c('Mock' = '#FA8633',
+            'Mutant' = '#1C6C7F',
+            'Reovirus' = '#9A6DA3')
+```
+
 ```{r check quality}
 
 sum_by_sample <-
   data_long |> 
-  group_by(type, sample_ID) |> 
+  group_by(treatment, sample) |> 
   summarize('sum' = sum(reads)) |>
   ungroup()
 
 ggplot(data = data_long,
-       mapping = aes(x = factor(sample_ID, levels = c('Donor 97 pDC', 'Donor 28 pDC', 'Donor 97 CD1c+ mDC',
-                                                      'Donor 28 CD1c+ mDC', 'Donor 36 CD1c+ mDC', 'Donor 97 SLAN DC',
-                                                      'Donor 28 SLAN DC', 'Donor 36 SLAN DC', 'Donor 97 CD14+ mono', 
-                                                      'Donor 28 CD14+ mono')))) +
+       mapping = aes(x = sample)) +
           
   geom_col(data = sum_by_sample,
            mapping = aes(y = sum,
-                         fill = type),
+                         fill = treatment),
            color = 'black') +
   
-  labs(x = 'Sample ID',
+  labs(x = 'Sample',
        y = 'Total Reads',
        title = 'Assessing the quality of the dataset using number of reads',
        caption = 'Data from refine.bio\nAccession ID: SRP074247',
@@ -124,29 +157,23 @@ ggplot(data = data_long,
         legend.position = 'right',
         plot.caption = element_text(face = 'italic')) +
   
-  scale_fill_manual(values = c('pDC NA' = '#FA8633',
-                               'CD1c+ mDC' = '#1C6C7F',
-                               'SLAN DC' = '#9A6DA3',
-                               'CD14+ mono' = '#CEEDA1')) +
+  scale_fill_manual(values = colors) +
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
 
 ```{r boxplot}
 
-ggplot(data = sum_by_sample |> group_by(type) |> summarize('sum' = sum(sum)),
+ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)),
        mapping = aes(x = sum, 
-                     y = type,
-                     fill = type)) +
+                     y = treatment,
+                     fill = treatment)) +
   
   geom_boxplot(data = data_long |> group_by(reads),
                mapping = aes(x = log2(reads))) +
   
   
-  scale_fill_manual(values = c('pDC NA' = '#FA8633',
-                               'CD1c+ mDC' = '#1C6C7F',
-                               'SLAN DC' = '#9A6DA3',
-                               'CD14+ mono' = '#CEEDA1')) +
+  scale_fill_manual(values = colors) +
   
   labs(title = 'Number of reads by sample type',
        x = 'log2(reads)',
@@ -159,7 +186,7 @@ ggplot(data = sum_by_sample |> group_by(type) |> summarize('sum' = sum(sum)),
          
         
 ```
-putting words in the middle because it's funky
+
 ```{r t test}
 
 # TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
@@ -190,13 +217,25 @@ ggplot(data = sum_by_gene,
 ```
 ```{r exclude low abundance}
 
+#high_abundance_genes <-
+  #data |>
+  #filter_if(is.numeric, all_vars((.) != 0))
+  #filter(if_any(-gene, ~ !.x  %in% 0)) # why isn't it getting rid of some of the rows with zero
+
 high_abundance_genes <-
-  data |>
-  filter(if_any(-gene, ~ !.x  %in% 0)) # why isn't it getting rid of some of the rows with zero
-
-high_abundance_sum <- 
   data_long |>
+  pivot_wider(names_from = gene,
+              values_from = reads) |>
+  select(where(~ all(. != 0)))
 
+high_abundance_long <- 
+  high_abundance_genes |>
+  pivot_longer(cols = -c(sample, treatment, replicate),
+               names_to = 'gene',
+               values_to = 'reads')
+
+high_abundance_sum <-
+  high_abundance_long |>
   group_by(gene) |> 
   summarize('sum' = sum(reads)) |>
   ungroup()
@@ -219,14 +258,11 @@ ggplot(data = high_abundance_sum,
 ```
 ```{r distribution per sample}
 
-ggplot(data = high_abundance_genes,
-       mapping = aes(x = factor(sample_ID, levels = c('Donor 97 pDC', 'Donor 28 pDC', 'Donor 97 CD1c+ mDC',
-                                                      'Donor 28 CD1c+ mDC', 'Donor 36 CD1c+ mDC', 'Donor 97 SLAN DC',
-                                                      'Donor 28 SLAN DC', 'Donor 36 SLAN DC', 'Donor 97 CD14+ mono', 
-                                                      'Donor 28 CD14+ mono')))) +
+ggplot(data = high_abundance_long,
+       mapping = aes(x = sample)) +
           
   geom_boxplot(mapping = aes(y = log2(reads),
-                             fill = type),
+                             fill = treatment),
               color = 'black') +
   
   labs(x = 'Sample ID',
@@ -245,12 +281,15 @@ ggplot(data = high_abundance_genes,
         legend.position = 'right',
         plot.caption = element_text(face = 'italic')) +
   
-  scale_fill_manual(values = c('pDC NA' = '#FA8633',
-                               'CD1c+ mDC' = '#1C6C7F',
-                               'SLAN DC' = '#9A6DA3',
-                               'CD14+ mono' = '#CEEDA1')) +
+  scale_fill_manual(values = colors) +
   
   scale_y_continuous(expand = c(0.01, 0))
+```
+```{r sample comparison}
+
+data_dist <- dist(t(high_abundance_by_sample), method = "euclidean")
+
+#plot(hclust(data_dist, method = "complete"), xlab = "Samples", main = NULL)
 ```
 
 
