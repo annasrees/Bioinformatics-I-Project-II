@@ -22,11 +22,19 @@ This data analysis uses additional packages beyond base R, which includes the pa
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE,
                       # warning = FALSE,
-                      # message = FALSE,
+                      # message = FALSE,n
                       fig.align = "center",
                       fig.height = 8)
 
-pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr, usedist, gridExtra)
+#install.packages('pacman')
+#install.packages(c("BiocManager", "RColorBrewer", "tidyverse", "devtools", "pheatmap", "gprofiler2"))
+#install.packages("genekitr")
+
+#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR"))
+
+pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
+               readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
+               genekitr, clusterProfiler, EnhancedVolcano)
 
 theme_set(theme_bw())
 ```
@@ -113,16 +121,16 @@ This is adding the gene name to each row
 
 ```{r add gene as column}
 
-data <- rownames_to_column(data, 'gene')
+data_clean <- rownames_to_column(data, 'gene')
 
-tibble(data)
+tibble(data_clean)
 ```
 ## Pivoting the data frame
 Initially, the read matrix had one row for every gene, and each column was the read count for each treatment and replicate. By pivoting the data, we now are able to have more than one row for each gene (there are now nine rows for each gene, as there are nine sample treatment types), and the columns are divided by sample, treatment, replicate, gene, and reads. This way, the data is easier to assess and the data frame contains more information than just the read counts.
 ```{r pivot data}
 
 data_long <-
-  pivot_longer(data = data,
+  pivot_longer(data = data_clean,
                cols = -gene,
                names_to = 'ID',
                values_to = 'reads') |>
@@ -434,5 +442,14 @@ tree_non_norm <-
 
 ```
 
+
+```{r create dds}
+data_round <- round(data)
+
+dds <- DESeqDataSetFromMatrix(countData = data_round,           
+                                       colData = meta_clean,
+                                       design= ~ treatment)
+dds
+```
 
 words at the end!
