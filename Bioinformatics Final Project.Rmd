@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center",
                       fig.height = 8)
 
-pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr)
+pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, readr, usedist)
 
 theme_set(theme_bw())
 ```
@@ -285,14 +285,43 @@ ggplot(data = high_abundance_long,
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
-```{r sample comparison}
 
-data_dist <- dist(t(high_abundance_by_sample), method = "euclidean")
-
-#plot(hclust(data_dist, method = "complete"), xlab = "Samples", main = NULL)
+```{r}
+sample_names <- c('Mock 1', 'Mock 2', 'Mock 3', 'Mutant 1', 'Mutant 2', 'Mutant 3', 'Reovirus 1', 'Reovirus 2', 'Reovirus 3')
 ```
 
 
+```{r sample comparison}
+high_abundance_log2 <-
+  high_abundance_long |> 
+  mutate(reads = log2(reads)) |>
+  pivot_wider(names_from = gene,
+              values_from = reads) |>
+  select(-c(treatment, replicate))
+
+data_dist <- dist(high_abundance_log2, method = "euclidean")
+data_dist <- dist_setNames(data_dist, c('Mock 1', 'Mock 2', 'Mock 3', 'Mutant 1', 'Mutant 2', 'Mutant 3', 'Reovirus 1', 'Reovirus 2', 'Reovirus 3'))
+
+
+plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+```
+
+```{r normalizing}
+
+sample_medians <- as.numeric(apply(t(high_abundance_log2), 2, median))
+
+grand_median <- mean(sample_medians)
+
+correction_factors <- grand_median - sample_medians
+
+normalizing <- data.frame(sample_names, correction_factors)
+
+normalizing
+```
+
+```{r}
+
+```
 
 
 
