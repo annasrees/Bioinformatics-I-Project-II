@@ -91,8 +91,8 @@ meta_clean <-
 meta_clean
 ```
 ## Counts Matrix
-// TODO: describe the counts matrix
-
+The counts matrix is a data frame which contains the actual data output from the RNA-seq experiment, and will be used for the differential gene expression analysis.
+_________________________________________________________________________________
 Reading in the counts matrix
 ```{r read counts matrix}
 # Read in counts matrix
@@ -108,6 +108,7 @@ tibble(data)
 identical(colnames(data), meta_clean$sample)
 
 ```
+## Changing the Column Names
 This is renaming the columns created above for treatment type and replicate number on the counts matrix
 
 ```{r change column names}
@@ -338,10 +339,9 @@ data_dist <- dist(high_abun_log2, method = "euclidean")
 data_dist <- dist_setNames(data_dist, sample_names)
 
 tree_non_norm <-
-  hclust(data_dist, method = "complete")
-plot(tree_non_norm, xlab = "Sample", main = NULL)
+  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
-
+tree_non_norm
 ```
 
 ```{r correction factors}
@@ -427,31 +427,14 @@ grid.arrange(non_normal_graph, normal_graph, ncol=2)
 ```
 
 ```{r normal tree}
-norm_dist <- dist(t(norm_data), method = "euclidean")
-norm_dist <- dist_setNames(data_dist, sample_names)
+data_dist <- dist(high_abun_log2, method = "euclidean")
+data_dist <- dist_setNames(data_dist, sample_names)
 
-tree_norm <-
-  hclust(norm_dist, method = "complete")
-  plot(tree_norm, xlab = "Sample", main = NULL)
-
+tree_non_norm <-
+  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 ```
-```{r both trees}
-par(mfrow=c(1,2),cex.lab=0.7, cex.main = 0.9, cex.axis = 0.7)
-plot(tree_non_norm, xlab = "Sample", main = NULL)
-plot(tree_norm, xlab = "Sample", main = NULL)
-```
 
-```{r}
-PCA <- prcomp(t(norm_dist))
-plot(PCA$x[ , 1], PCA$x[ , 2], pch = 19)
-```
-
-```{r color by treatment}
-plot(PCA$x[ ,1], PCA$x[ , 2], pch = 19, col = colors, main = "PCA (colored by treatment)", xlab = "PCA
-1", ylab = "PCA2", ylim = c(-150,150))
-legend("topright", legend = c("mock", "mutant", 'reovirus'), pch = 16, col = colors, bty = "n")
-```
 
 ```{r create dds}
 data_round <- round(data)
