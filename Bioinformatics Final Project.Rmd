@@ -67,9 +67,9 @@ meta |>
 
 for(i in 1:nrow(meta_clean)){
   if(grepl('Mock', meta_clean$title[i])){
-    meta_clean$treatment[i] <- 'mock'}
+    meta_clean$treatment[i] <- 'uninfected'}
   if(grepl('with Reovirus', meta_clean$title[i])){
-    meta_clean$treatment[i] <- 'reovirus'}
+    meta_clean$treatment[i] <- 'infected'}
   if(grepl('Mutant', meta_clean$title[i])){
     meta_clean$treatment[i] <- 'mutant'}
 }
@@ -85,6 +85,7 @@ for(i in 1:nrow(meta_clean)){
 
 meta_clean <-
   meta_clean |>
+  filter(treatment %in% c('uninfected', 'infected')) |>
   select(sample, title, treatment, replicate) |>
   janitor::clean_names()
 
@@ -99,9 +100,10 @@ Reading in the counts matrix
 data <- read.table(file = './Data/SRP074247/SRP074247.tsv',
            sep = '\t',
            header = TRUE,
-           row.names = 1)
+           row.names = 1) |>
+  select(-c(SRR3471114, SRR3471115, SRR3471116))
 
-tibble(data)
+head(data)
 ```
 ```{r check identical}
 
@@ -151,9 +153,8 @@ tibble(data_long)
 ```
 
 ```{r colors}
-colors <- c('mock' = '#FA8633',
-            'mutant' = '#1C6C7F',
-            'reovirus' = '#9A6DA3')
+colors <- c('infected' = '#FA8633',
+            'uninfected' = 'lightseagreen')
 ```
 ## Checking the quality of the dataset
 For gene expression profiling experiments, we hope for between 10-25 million reads per sample. Below is a bar plot showing the sum of the total reads for each sample
@@ -222,17 +223,13 @@ ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)
         
 ```
 Rather than conducting a T-test to establish statistical significance, we will use Analysis of variance (ANOVA). This is because we have 3 treatment variables, and a T test is only able to analyze significance between 2 variables.
-```{r ANOVA test}
+```{r t test}
 
-# TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
-#model <- aov(data = data_long, formula = reads ~ treatment, projections = FALSE, qr = TRUE,
-#    contrasts = NULL)
-#summary(model)
-oneway.test(reads ~ treatment, data = data_long, var.equal = F)
+t.test(colSums(data) ~ meta_clean$treatment)
 
 ```
 
-```{r low abundance histogram}
+```{r histogram}
 
 sum_by_gene <-
   data_long |> 
@@ -245,7 +242,7 @@ ggplot(data = sum_by_gene,
   
   geom_histogram(bins = 15,
                  color = 'black',
-                 fill = '#1C6C7F') +
+                 fill = '#9A6DA3') +
   
   labs(x = 'Log-2 transformed counts per gene',
        y = 'Number of genes',
@@ -280,7 +277,7 @@ ggplot(data = high_abun_sum,
   
   geom_histogram(bins = 15,
                  color = 'black',
-                 fill = '#1C6C7F') +
+                 fill = '#9A6DA3') +
   
   labs(x = 'Log-2 transformed counts per gene',
        y = 'Number of genes',
@@ -326,7 +323,7 @@ non_normal_graph
 ```
 
 ```{r}
-sample_names <- c('mock_1', 'mock_2', 'mock_3', 'mutant_1', 'mutant_2', 'mutant_3', 'reovirus_1', 'reovirus_2', 'reovirus_3')
+sample_names <- c('uninfected_1', 'uninfected_2', 'uninfected_3', 'infected_1', 'infected_2', 'infected_3')
 ```
 
 
@@ -345,10 +342,10 @@ high_abun_log2_flipped <-
 data_dist <- dist(high_abun_log2, method = "euclidean")
 data_dist <- dist_setNames(data_dist, sample_names)
 
-tree_non_norm <-
-  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
-tree_non_norm
+plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+
+
 ```
 
 ```{r correction factors}
@@ -437,8 +434,7 @@ grid.arrange(non_normal_graph, normal_graph, ncol=2)
 data_dist <- dist(high_abun_log2, method = "euclidean")
 data_dist <- dist_setNames(data_dist, sample_names)
 
-tree_non_norm <-
-  plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
+plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 ```
 
