@@ -34,7 +34,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
                readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
-               genekitr, clusterProfiler, EnhancedVolcano)
+               genekitr, clusterProfiler, EnhancedVolcano, ggfortify)
 
 theme_set(theme_bw())
 ```
@@ -111,7 +111,7 @@ head(data)
 ```
 ```{r check identical}
 
-identical(colnames(data), meta_clean$sample_ID)
+identical(colnames(data), meta_clean$sample_id)
 
 ```
 ## Changing the Column Names
@@ -466,9 +466,9 @@ plot(hclust(norm_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 PCA <- prcomp(t(norm_dist))
 
-plot(PCA$x[ ,1], PCA$x[ , 2], pch = 19, col = colors, main = "Colored by Treatment", xlab = "PCA
-1", ylab = "PCA2")
-legend("topright", legend = c("uninfected", "infected"), pch = 16, col = c('#FA8633', 'lightseagreen'), bty = "n")
+autoplot(PCA, data = data_long, color = 'treatment', main = "Colored by Treatment", size = 3)
+
+
 ```
 ```{r}
 
@@ -508,13 +508,15 @@ head(res)
 print('Dimensions:')
 dim(res)
 ```
-```{r pca}
+
+```{r pca 2}
 
 vsd <- vst(dds, blind=FALSE)
 
 plotPCA(vsd, intgroup=c("treatment")) + theme_classic() + scale_color_manual(values = colors)
 
 ```
+
 ```{r heatmap}
 rld <- rlog(dds, blind=FALSE)
 rld_mat <- assay(rld)  
@@ -544,13 +546,123 @@ names(infected_n_res_data)[1] <- "Ensembl_ID"
 
 head(res)
 ```
+
+
 ```{r change gene names}
 ids <- infected_n_res_data |> select(Ensembl_ID)
-summary(ids)
-gene_symbol_map <- transId(id = ids, transTo = "symbol") #default is human! 
-str(infected_n_res_data)
-infected_n_res_data_gene <- left_join(infected_n_res_data, gene_symbol_map,
-                      by=c('Ensembl_ID'='input_id'))
-# ahhhhhh
+
+#gene_symbol_map <- transId(id = ids, transTo = "symbol") #default is human! 
+#str(infected_n_res_data)
+#infected_n_res_data_gene <- left_join(infected_n_res_data, gene_symbol_map,
+                     # by=c('Ensembl_ID'='input_id'))
+
+```
+
+```{r}
+#output tabular files
+write.csv(infected_n_res_data, 
+          quote = FALSE,
+          file = "infected_vs_uninfected_normalized_matrix.csv")
+
+#infected_n_sig_data <- subset(infected_n_res_data_gene, 
+                                 # padj < 0.05 & abs(log2FoldChange) > 1)
+
+write.csv(infected_n_sig_data, 
+          quote = FALSE,
+          file = "infected_vs_uninfected_deg_padj0.05_log2fc1.csv")
+```
+
+```{r}
+
+EnhancedVolcano(infected_n_res_data,
+                lab = as.character(infected_n_res_data$Ensembl_ID),
+                x = 'log2FoldChange',
+                y = 'padj', 
+                title = "SLE versus healthy controls",
+                subtitle = "Differential expression",
+                caption = paste0("Upregulated = 330, Downregulated = 222"),
+                xlim = c(-10,10),
+                ylim = c(0,20),
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                labSize = 4, 
+                axisLabSize = 12, 
+                col=c('grey40', 'grey40', 'grey40', '#9A6DA3'),
+                legendLabels=c('Not sig.','Log2FC','padj', 'padj & Log2FC'),
+                legendPosition = 'right',
+                legendLabSize = 10,
+                legendIconSize = 5.0,
+                gridlines.major = FALSE,
+                gridlines.minor = FALSE)
+```
+
+```{r}
+# plotting upregulated gene
+
+d <- plotCounts(dds, gene="ENSMUSG00000024678", intgroup="treatment", returnData=TRUE)
+
+# Plotting the MOV10 normalized counts, using the samplenames (rownames of d as labels)
+ggplot(d, aes(x = treatment, y = count, color = treatment)) + 
+  geom_point(position=position_jitter(w = 0.1,h = 0),
+             size = 2.5) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = colors) +
+  labs(title = "ENSMUSG00000024678",
+       x = 'Treatment',
+       y = 'Count')
+
+```
+
+```{r}
+# plotting downregulated gene
+d <- plotCounts(dds, gene="ENSMUSG00000056328", intgroup="treatment", returnData=TRUE)
+
+# Plotting the MOV10 normalized counts, using the samplenames (rownames of d as labels)
+ggplot(d, aes(x = treatment, y = count, color = treatment)) + 
+  geom_point(position=position_jitter(w = 0.1,h = 0),
+             size = 2.5) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values = colors) +
+  labs(title = "ENSMUSG00000056328",
+       x = 'Treatment',
+       y = 'Count')
+
+```
+
+```{r}
+## Order results by padj values
+top20_sigOE_genes <- infected_n_res_data |>
+        arrange(padj) |> 	#Arrange rows by padj values
+        pull(Ensembl_ID) |>		#Extract character vector of ordered genes
+        head(n=20) 		#Extract the first 20 genes
+
+## normalized counts for top 20 significant genes
+top20_sigOE_norm <- infected_n_sig_data |>
+        filter(Ensembl_ID %in% top20_sigOE_genes)
+
+# Gathering the columns to have normalized counts to a single column
+gathered_top20_sigOE <- top20_sigOE_norm |>
+  gather(colnames(top20_sigOE_norm)[8:13], key = "sample", value = "normalized_counts")
+
+## check the column header in the "gathered" data frame
+head(gathered_top20_sigOE)
+
+gathered_top20_sigOE <- inner_join(meta_clean, gathered_top20_sigOE)
+```
+```{r}
+## plot using ggplot2
+
+ggplot(data = gathered_top20_sigOE,
+       mapping = aes(x = as.character(Ensembl_ID), y = normalized_counts, color = treatment)) +
+  geom_point() +
+  scale_y_log10() +
+  xlab("Gene") +
+  ylab("log10 Normalized Counts") +
+  ggtitle("Top 20 Significant DE Genes") +
+  theme_bw() +
+  scale_color_manual(values = colors) +
+      
+theme(axis.text.x = element_text(angle = , hjust = 1)) +
+theme(plot.title = element_text(hjust = 0.5))
 ```
 
