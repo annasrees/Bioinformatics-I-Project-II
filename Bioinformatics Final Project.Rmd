@@ -549,7 +549,7 @@ head(res)
 
 
 ```{r change gene names}
-ids <- infected_n_res_data |> select(Ensembl_ID)
+ids <- infected_n_res_data |> select(Ensembl_ID) |> as.character()
 
 #gene_symbol_map <- transId(id = ids, transTo = "symbol") #default is human! 
 #str(infected_n_res_data)
