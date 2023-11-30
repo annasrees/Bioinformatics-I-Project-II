@@ -225,30 +225,22 @@ ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)
          
         
 ```
-<<<<<<< HEAD
+
 ## Evalutating statistical significance
 
 We are conducting a T-Test to evaluate whether or not there is a statistical difference in counts by treatment. We are hoping for a high p-value which will indicate no statistical significance in the difference in read counts by treatment.
 
-```{r ANOVA test}
-=======
 Rather than conducting a T-test to establish statistical significance, we will use Analysis of variance (ANOVA). This is because we have 3 treatment variables, and a T test is only able to analyze significance between 2 variables.
 ```{r t test}
->>>>>>> 695a592cedc6e9a213dd79f1121ebc23bd4be2d3
 
 t.test(colSums(data) ~ meta_clean$treatment)
 
 ```
 
-<<<<<<< HEAD
-
 ## Histogram of reads by gene
 
-
-```{r low abundance histogram}
-=======
 ```{r histogram}
->>>>>>> 695a592cedc6e9a213dd79f1121ebc23bd4be2d3
+
 
 sum_by_gene <-
   data_long |> 
@@ -309,6 +301,8 @@ ggplot(data = high_abun_sum,
 
 
 ```
+
+
 ```{r distribution per sample}
 
 non_normal_graph <-
