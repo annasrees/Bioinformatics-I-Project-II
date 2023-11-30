@@ -476,7 +476,8 @@ autoplot(PCA, data = data_long, color = 'treatment', main = "Colored by Treatmen
 
 
 ```{r create dds}
-data_round <- round(data.matrix(data))
+data_round <- 
+  round(data.matrix(data))
 
 #Make sure order is correct
 head(data_round,2)
@@ -487,7 +488,8 @@ meta_clean[, c('sample')]
 dds <- DESeqDataSetFromMatrix(countData = data_round,           
                                        colData = meta_clean,
                                        design = ~ treatment)
-dds
+
+
 ```
 ```{r prefilter dds}
 # pre-filter to remove low-read rows
@@ -549,9 +551,9 @@ head(res)
 
 
 ```{r change gene names}
-ids <- infected_n_res_data |> select(Ensembl_ID) |> as.character()
+ids <- as.character(rownames(dds))
 
-#gene_symbol_map <- transId(id = ids, transTo = "symbol") #default is human! 
+transId(id = ids, transTo = "symbol") #default is human! 
 #str(infected_n_res_data)
 #infected_n_res_data_gene <- left_join(infected_n_res_data, gene_symbol_map,
                      # by=c('Ensembl_ID'='input_id'))
