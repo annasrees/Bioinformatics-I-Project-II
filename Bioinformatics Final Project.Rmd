@@ -42,6 +42,8 @@ theme_set(theme_bw())
 ## Bringing in the metadata_SRP074247.tsv file
 This is reading in the metadata into a data frame and doing some preliminary data cleaning, which includes separating values and using the janitor function to clean up the metadata.
 
+#:-)
+
 ```{r read files}
 
 meta <- read.table(file = './Data/SRP074247/metadata_SRP074247.tsv',
