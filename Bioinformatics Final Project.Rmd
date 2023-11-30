@@ -61,7 +61,7 @@ meta_clean <-
   
 meta |>
   # Changing columns to choose based on how our dataset is stored
-  mutate('sample_ID' = refinebio_accession_code,
+  mutate('sample' = refinebio_accession_code,
          'title' = refinebio_title,
          'treatment' = refinebio_title,
          'replicate' = refinebio_title,
@@ -88,8 +88,7 @@ for(i in 1:nrow(meta_clean)){
 meta_clean <-
   meta_clean |>
   filter(treatment %in% c('uninfected', 'infected')) |>
-  mutate('sample' = paste(treatment, replicate, sep = "_")) |>
-  select(sample_ID, sample, title, treatment, replicate) |>
+  select(sample, title, treatment, replicate) |>
   janitor::clean_names()
 
 meta_clean
@@ -111,7 +110,7 @@ head(data)
 ```
 ```{r check identical}
 
-identical(colnames(data), meta_clean$sample_ID)
+identical(colnames(data), meta_clean$sample)
 
 ```
 ## Changing the Column Names
@@ -239,6 +238,7 @@ Rather than conducting a T-test to establish statistical significance, we will u
 t.test(colSums(data) ~ meta_clean$treatment)
 
 ```
+The p-value given is 0.2935. There is **not** a significant difference between the total number of counts by treatment group.
 
 ## Histogram of reads by gene
 
@@ -267,7 +267,7 @@ ggplot(data = sum_by_gene,
 
 ```
 
-## Exclusing low abundance genes
+## Excluding low abundance genes
 ```{r exclude low abundance}
 
 high_abun_genes <-
@@ -305,6 +305,7 @@ ggplot(data = high_abun_sum,
 
 ```
 
+## Distribution per Sample boxplots
 
 ```{r distribution per sample}
 
@@ -339,11 +340,13 @@ ggplot(data = high_abun_long,
 
 non_normal_graph
 ```
+We can see from the boxplot above that there is slight variation in counts per gene
 
 ```{r}
 sample_names <- c('uninfected_1', 'uninfected_2', 'uninfected_3', 'infected_1', 'infected_2', 'infected_3')
 ```
 
+## Sample Variability
 
 ```{r sample comparison}
 high_abun_log2 <-
@@ -365,7 +368,9 @@ plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 
 ```
+Above is a distance tree demonstrating similarity between samples based on the read counts.
 
+Below, we conduct simple normalization by generating correction factors based on the means.
 ```{r correction factors}
 
 sample_medians <- (apply(high_abun_log2_flipped, 2, median))
@@ -379,6 +384,7 @@ corrections <- data.frame(correction_factors)
 corrections
 ```
 
+We then apply the correlation factor and adjust accordingly.
 ```{r normalizing}
 
 norm_data <- high_abun_log2_flipped
@@ -409,6 +415,8 @@ norm_data_long <-
   select(sample, treatment, replicate, gene, normalized_reads)
 ```
 
+
+## Normalized counts
 ```{r normalized graph}
 
 normal_graph <-
@@ -448,108 +456,23 @@ normal_graph
 grid.arrange(non_normal_graph, normal_graph, ncol=2)
 ```
 
+## Cluster dendogram (distance tree) of normalized data
 ```{r normal tree}
-norm_log2 <-
-  norm_data_long |>
-  mutate(normalized_reads = log2(normalized_reads)) |>
-  pivot_wider(names_from = gene,
-              values_from = normalized_reads)
+data_dist <- dist(high_abun_log2, method = "euclidean")
+data_dist <- dist_setNames(data_dist, sample_names)
 
-norm_dist <- dist(norm_log2, method = "euclidean")
-norm_dist <- dist_setNames(norm_dist, sample_names)
-
-plot(hclust(norm_dist, method = "complete"), xlab = "Sample", main = NULL)
-
-```
-```{r pca}
-
-
-PCA <- prcomp(t(norm_dist))
-
-plot(PCA$x[ ,1], PCA$x[ , 2], pch = 19, col = colors, main = "Colored by Treatment", xlab = "PCA
-1", ylab = "PCA2")
-legend("topright", legend = c("uninfected", "infected"), pch = 16, col = c('#FA8633', 'lightseagreen'), bty = "n")
-```
-```{r}
+plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 ```
 
 
 ```{r create dds}
-data_round <- round(data.matrix(data))
-
-#Make sure order is correct
-head(data_round,2)
-meta_clean[, c('sample')]
-
-
+data_round <- round(data)
 
 dds <- DESeqDataSetFromMatrix(countData = data_round,           
                                        colData = meta_clean,
-                                       design = ~ treatment)
+                                       design= ~ treatment)
 dds
 ```
-```{r prefilter dds}
-# pre-filter to remove low-read rows
-keep <- rowSums(counts(dds)) >= 10
-dds <- dds[keep,]
-```
 
-```{r reference level }
-dds$treatment <- relevel(dds$treatment, ref = "uninfected")
-```
-
-```{r dds}
-# run Differential Expression Analysis
-dds <- DESeq(dds)
-res <- results(dds)
-
-head(res)
-print('Dimensions:')
-dim(res)
-```
-```{r pca}
-
-vsd <- vst(dds, blind=FALSE)
-
-plotPCA(vsd, intgroup=c("treatment")) + theme_classic() + scale_color_manual(values = colors)
-
-```
-```{r heatmap}
-rld <- rlog(dds, blind=FALSE)
-rld_mat <- assay(rld)  
-rld_cor <- cor(rld_mat) 
-
-heat.colors <- brewer.pal(9, "Spectral")
-pheatmap(rld_cor, color = heat.colors,
-         breaks = c(0.95, 0.99, 0.995, 0.999, 0.9995, 0.99995))
-```
-
-```{r table results}
-
-infected_n_res <- results(dds, contrast = c("treatment", "infected", "uninfected"))
-infected_n_sigs <- na.omit(infected_n_res)
-infected_n_sigs <- subset(infected_n_sigs, padj < 0.05 & abs(log2FoldChange) > 1)
-infected_n_sig_data <- merge(data.frame(infected_n_sigs),
-                        data.frame(counts(dds, normalized = TRUE)), 
-                        by = "row.names", sort=FALSE)
-
-names(infected_n_sig_data)[1] <- "Ensembl_ID"
-
-infected_n_res_data <- merge(data.frame(infected_n_res),
-                        data.frame(counts(dds, normalized = TRUE)),
-                        by="row.names", sort=FALSE)
-
-names(infected_n_res_data)[1] <- "Ensembl_ID"
-
-head(res)
-```
-```{r change gene names}
-ids <- infected_n_res_data |> select(Ensembl_ID)
-summary(ids)
-gene_symbol_map <- transId(id = ids, transTo = "symbol") #default is human! 
-str(infected_n_res_data)
-infected_n_res_data_gene <- left_join(infected_n_res_data, gene_symbol_map,
-                      by=c('Ensembl_ID'='input_id'))
-```
-
+words at the end!
