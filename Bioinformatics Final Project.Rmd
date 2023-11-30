@@ -93,6 +93,7 @@ meta_clean
 ## Counts Matrix
 The counts matrix is a data frame which contains the actual data output from the RNA-seq experiment, and will be used for the differential gene expression analysis.
 _________________________________________________________________________________
+
 Reading in the counts matrix
 ```{r read counts matrix}
 # Read in counts matrix
@@ -109,7 +110,7 @@ identical(colnames(data), meta_clean$sample)
 
 ```
 ## Changing the Column Names
-This is renaming the columns created above for treatment type and replicate number on the counts matrix
+This is renaming the columns created above for treatment type (infected or uninfected) and replicate number on the counts matrix
 
 ```{r change column names}
 
@@ -155,6 +156,7 @@ colors <- c('mock' = '#FA8633',
             'mutant' = '#1C6C7F',
             'reovirus' = '#9A6DA3')
 ```
+
 ## Checking the quality of the dataset
 For gene expression profiling experiments, we hope for between 10-25 million reads per sample. Below is a bar plot showing the sum of the total reads for each sample
 
@@ -196,6 +198,7 @@ ggplot(data = data_long,
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
+
 Boxplot of the number of reads by sample type
 ```{r boxplot}
 
@@ -221,7 +224,10 @@ ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)
          
         
 ```
-Rather than conducting a T-test to establish statistical significance, we will use Analysis of variance (ANOVA). This is because we have 3 treatment variables, and a T test is only able to analyze significance between 2 variables.
+## Evalutating statistical significance
+
+We are conducting a T-Test to evaluate whether or not there is a statistical difference in counts by treatment. We are hoping for a high p-value which will indicate no statistical significance in the difference in read counts by treatment.
+
 ```{r ANOVA test}
 
 # TODO YOU CANT DO A T TEST WITH MORE THAN TWO LEVELS SO WE WILL COME BACK TO THIS 
@@ -232,6 +238,8 @@ oneway.test(reads ~ treatment, data = data_long, var.equal = F)
 
 ```
 
+
+## Histogram of reads by gene
 ```{r low abundance histogram}
 
 sum_by_gene <-
@@ -255,6 +263,8 @@ ggplot(data = sum_by_gene,
                                   size = 16))
 
 ```
+
+## Exclusing low abundance genes
 ```{r exclude low abundance}
 
 high_abun_genes <-
