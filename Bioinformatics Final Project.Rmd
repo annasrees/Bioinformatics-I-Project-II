@@ -847,9 +847,4 @@ sle_vs_n_gost <- gost(query = gene_list$uniprot_gn_symbol,
 gostplot(sle_vs_n_gost, interactive = TRUE)
 ```
 **Figure 21. Gostplot Visualization of many pathways databases with gprofiler.** This is a statistical enrichment analysis which finds over-representation of information from various networks at the same time. The vector of sources used includes GO:BP, KEGG, REAC, and WP. 
-```{r}
-# IDK WHAT THIS IS FOR
-REACTOME <- msigdb_gsets(species="Mus musculus", 
-                         category="C2", 
-                         subcategory="CP:REACTOME")
-```
+
