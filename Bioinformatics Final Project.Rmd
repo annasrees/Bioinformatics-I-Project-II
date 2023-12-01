@@ -23,20 +23,21 @@ This data analysis uses additional packages beyond base R, which includes the pa
 knitr::opts_chunk$set(echo = TRUE,
                       # warning = FALSE,
                       # message = FALSE,n
-                      fig.align = "center",
-                      fig.height = 8)
+                      fig.align = "center")
 
-#install.packages('pacman')
+
 #install.packages(c("BiocManager", "RColorBrewer", "tidyverse", "devtools", "pheatmap", "gprofiler2"))
 #install.packages("genekitr")
 
-#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR"))
+
+#install.packages('pacman')
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
                readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
                genekitr, clusterProfiler, EnhancedVolcano, ggfortify, biomartr,
-               hypeR, gprofiler2)
+               hypeR, gprofiler2, BiocManager)
 
+#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR", "biomaRt"))
 
 theme_set(theme_bw())
 ```
@@ -569,25 +570,11 @@ infected_n_sig_data <- merge(infected_n_sig_data, gene_list, by.x="Ensembl_ID", 
 ```
 
 ```{r}
-#output tabular files
-write.csv(infected_n_res_data, 
-          quote = FALSE,
-          file = "infected_vs_uninfected_normalized_matrix.csv")
-
-#infected_n_sig_data <- subset(infected_n_res_data_gene, 
-                                 # padj < 0.05 & abs(log2FoldChange) > 1)
-
-write.csv(infected_n_sig_data, 
-          quote = FALSE,
-          file = "infected_vs_uninfected_deg_padj0.05_log2fc1.csv")
-```
-
-```{r}
 EnhancedVolcano(infected_n_res_data,
                 lab = as.character(infected_n_res_data$uniprot_gn_symbol),
                 x = 'log2FoldChange',
                 y = 'padj', 
-                title = "SLE versus healthy controls",
+                title = "Infected versus uninfected controls",
                 subtitle = "Differential expression",
                 caption = paste0("Upregulated = 330, Downregulated = 222"),
                 xlim = c(-10,10),
@@ -756,7 +743,7 @@ hyp_KEGG_up <- hypeR(up_degs,
 
 #show top pathway
 #plot_KEGG_up <- 
-  hyp_dots(hyp_KEGG_up, title="KEGG Pathways Upregulated in SLE patients", abrv=50, val = "fdr")
+  hyp_dots(hyp_KEGG_up, title="KEGG Pathways Upregulated in Infected Mice", abrv=50, val = "fdr")
 
 #ggsave("Dotplot_KEGG_upregulated.png")
 ```
@@ -770,7 +757,7 @@ hyp_KEGG_down <- hypeR(down_degs,
                        plotting=TRUE)
 
 #plot_KEGG_down <- 
-hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in SLE patients", abrv=50, val = "fdr")
+hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in Infected Mice", abrv=50, val = "fdr")
 
 #ggsave("Dotplot_KEGG_downregulated.png")
 ```
