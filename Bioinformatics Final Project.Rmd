@@ -34,7 +34,9 @@ knitr::opts_chunk$set(echo = TRUE,
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
                readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
-               genekitr, clusterProfiler, EnhancedVolcano, ggfortify)
+               genekitr, clusterProfiler, EnhancedVolcano, ggfortify, biomartr,
+               hypeR, gprofiler2)
+
 
 theme_set(theme_bw())
 ```
@@ -470,9 +472,6 @@ autoplot(PCA, data = data_long, color = 'treatment', main = "Colored by Treatmen
 
 
 ```
-```{r}
-
-```
 
 
 ```{r create dds}
@@ -524,9 +523,9 @@ rld <- rlog(dds, blind=FALSE)
 rld_mat <- assay(rld)  
 rld_cor <- cor(rld_mat) 
 
-heat.colors <- brewer.pal(9, "Spectral")
+heat.colors <- brewer.pal(6, "Blues")
 pheatmap(rld_cor, color = heat.colors,
-         breaks = c(0.95, 0.99, 0.995, 0.999, 0.9995, 0.99995))
+         breaks = c(0.97, 0.99, 0.995, 0.999, 0.9995, 0.99995))
 ```
 
 ```{r table results}
@@ -544,19 +543,28 @@ infected_n_res_data <- merge(data.frame(infected_n_res),
                         data.frame(counts(dds, normalized = TRUE)),
                         by="row.names", sort=FALSE)
 
-names(infected_n_res_data)[1] <- "Ensembl_ID"
+names(infected_n_res_data)[1] <- "Ensembl_ID"  
 
 head(res)
 ```
 
 
-```{r change gene names}
-ids <- as.character(rownames(dds))
+```{r get gene symbol name}
 
-transId(id = ids, transTo = "symbol") #default is human! 
-#str(infected_n_res_data)
-#infected_n_res_data_gene <- left_join(infected_n_res_data, gene_symbol_map,
-                     # by=c('Ensembl_ID'='input_id'))
+ids <- as.character(infected_n_res_data$Ensembl_ID)
+
+gene_list <- biomaRt::getBM(filter = 'ensembl_gene_id',
+                  attributes = c("ensembl_gene_id","uniprot_gn_symbol"), 
+                  values = ids,
+                  mart = biomaRt::useMart(biomart="ensembl", dataset="mmusculus_gene_ensembl"))
+
+```
+
+```{r add symbol to datasets}
+
+infected_n_res_data <- merge(infected_n_res_data, gene_list, by.x="Ensembl_ID", by.y="ensembl_gene_id")
+
+infected_n_sig_data <- merge(infected_n_sig_data, gene_list, by.x="Ensembl_ID", by.y="ensembl_gene_id")
 
 ```
 
@@ -575,9 +583,8 @@ write.csv(infected_n_sig_data,
 ```
 
 ```{r}
-
 EnhancedVolcano(infected_n_res_data,
-                lab = as.character(infected_n_res_data$Ensembl_ID),
+                lab = as.character(infected_n_res_data$uniprot_gn_symbol),
                 x = 'log2FoldChange',
                 y = 'padj', 
                 title = "SLE versus healthy controls",
@@ -589,7 +596,7 @@ EnhancedVolcano(infected_n_res_data,
                 pCutoff = 0.05,
                 labSize = 4, 
                 axisLabSize = 12, 
-                col=c('grey40', 'grey40', 'grey40', '#9A6DA3'),
+                col=c('grey40', 'grey40', 'grey40', '#FA8633'),
                 legendLabels=c('Not sig.','Log2FC','padj', 'padj & Log2FC'),
                 legendPosition = 'right',
                 legendLabSize = 10,
@@ -609,7 +616,7 @@ ggplot(d, aes(x = treatment, y = count, color = treatment)) +
              size = 2.5) +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_color_manual(values = colors) +
-  labs(title = "ENSMUSG00000024678",
+  labs(title = "Ms4a4d",
        x = 'Treatment',
        y = 'Count')
 
@@ -625,7 +632,7 @@ ggplot(d, aes(x = treatment, y = count, color = treatment)) +
              size = 2.5) +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_color_manual(values = colors) +
-  labs(title = "ENSMUSG00000056328",
+  labs(title = "Myh1",
        x = 'Treatment',
        y = 'Count')
 
@@ -635,12 +642,12 @@ ggplot(d, aes(x = treatment, y = count, color = treatment)) +
 ## Order results by padj values
 top20_sigOE_genes <- infected_n_res_data |>
         arrange(padj) |> 	#Arrange rows by padj values
-        pull(Ensembl_ID) |>		#Extract character vector of ordered genes
+        pull(uniprot_gn_symbol) |>		#Extract character vector of ordered genes
         head(n=20) 		#Extract the first 20 genes
 
 ## normalized counts for top 20 significant genes
 top20_sigOE_norm <- infected_n_sig_data |>
-        filter(Ensembl_ID %in% top20_sigOE_genes)
+        filter(uniprot_gn_symbol %in% top20_sigOE_genes)
 
 # Gathering the columns to have normalized counts to a single column
 gathered_top20_sigOE <- top20_sigOE_norm |>
@@ -655,7 +662,7 @@ gathered_top20_sigOE <- inner_join(meta_clean, gathered_top20_sigOE)
 ## plot using ggplot2
 
 ggplot(data = gathered_top20_sigOE,
-       mapping = aes(x = as.character(Ensembl_ID), y = normalized_counts, color = treatment)) +
+       mapping = aes(x = as.character(uniprot_gn_symbol), y = normalized_counts, color = treatment)) +
   geom_point() +
   scale_y_log10() +
   xlab("Gene") +
@@ -664,7 +671,124 @@ ggplot(data = gathered_top20_sigOE,
   theme_bw() +
   scale_color_manual(values = colors) +
       
-theme(axis.text.x = element_text(angle = , hjust = 1)) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 theme(plot.title = element_text(hjust = 0.5))
 ```
+```{r}
+KEGG <- msigdb_gsets(species="Mus musculus", 
+                     category="C2", 
+                     subcategory="CP:KEGG",
+                     clean = TRUE)
+```
 
+```{r}
+hyp_kegg <- hypeR(gene_list$uniprot_gn_symbol, 
+                  KEGG, 
+                  test="hypergeometric", 
+                  background=50000, 
+                  fdr=0.05, 
+                  plotting=TRUE)
+```
+
+```{r}
+hyp_dots(hyp_kegg, 
+         title="KEGG", 
+         abrv=30, 
+         val = "fdr")
+```
+```{r}
+HALLMARK <- msigdb_gsets("Mus musculus", 
+                         "H", 
+                         "",
+                         clean = TRUE)
+
+# Hallmark
+hyp_Hallmark <- hypeR(gene_list$uniprot_gn_symbol, 
+                      HALLMARK, 
+                      test="hypergeometric", 
+                      background=50000, 
+                      fdr=0.05, 
+                      plotting=TRUE)
+
+#show top pathway
+hyp_dots(hyp_Hallmark, 
+         title="HALLMARK", 
+         abrv=50, 
+         val = "fdr")
+```
+```{r}
+GOBP<- msigdb_gsets(species = "Mus musculus", 
+                    "C5", 
+                    "GO:BP",
+                    clean = TRUE)
+```
+
+```{r}
+# GOBP
+hyp_GOBP <- hypeR(gene_list$uniprot_gn_symbol, 
+                  GOBP, 
+                  test="hypergeometric", 
+                  background=50000, 
+                  fdr=0.05, 
+                  plotting=TRUE)
+
+#show top pathway
+hyp_dots(hyp_GOBP, title="GO: Biological Pathways", abrv=50, val = "fdr")
+```
+```{r}
+up_degs <- subset(infected_n_sig_data, log2FoldChange > 0)
+up_degs <- up_degs$uniprot_gn_symbol
+up_degs <- na.omit(up_degs)
+
+
+down_degs <- subset(infected_n_sig_data, log2FoldChange < 0)
+down_degs <- down_degs$uniprot_gn_symbol
+down_degs <- na.omit(down_degs)
+```
+
+```{r}
+hyp_KEGG_up <- hypeR(up_degs,
+                     KEGG, 
+                     test="hypergeometric", 
+                     background=50000, 
+                     fdr=0.05, 
+                     plotting=TRUE)
+
+#show top pathway
+#plot_KEGG_up <- 
+  hyp_dots(hyp_KEGG_up, title="KEGG Pathways Upregulated in SLE patients", abrv=50, val = "fdr")
+
+#ggsave("Dotplot_KEGG_upregulated.png")
+```
+```{r}
+# KEGG_down
+hyp_KEGG_down <- hypeR(down_degs, 
+                       KEGG, 
+                       test="hypergeometric",
+                       background=50000, 
+                       fdr=0.05, 
+                       plotting=TRUE)
+
+#plot_KEGG_down <- 
+hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in SLE patients", abrv=50, val = "fdr")
+
+#ggsave("Dotplot_KEGG_downregulated.png")
+```
+```{r}
+# THIS WHERE WE AT BUT IT'S BEDTIME
+sle_vs_n_gost <- gost(query = gene_list$uniprot_gn_symbol, 
+                      organism = "mmusculus", 
+                      sources = c("GO:BP", "KEGG", "REAC", "WP"),
+                      significant = TRUE, 
+                      correction_method ="fdr",
+                      domain_scope="annotated")
+
+gostplot(sle_vs_n_gost, interactive = TRUE)
+```
+
+```{r}
+# IDK WHAT THIS IS FOR
+REACTOME <- msigdb_gsets(species="Mus musculus", 
+                         category="C2", 
+                         subcategory="CP:REACTOME")
+```
