@@ -7,8 +7,9 @@ output: html_document
 ________________________________________________________________________________
 ## Data Information
 This data was sourced from a study conducted by Boudreault et al, cited below. 
-  Alternative splicing (AS) is a method of gene regulation in some Eukaryotes which modifies the sequence of RNA transcripts. AS changes the composition of the proteins resulting from the RNA transcripts through differential choice of exons included in mature mRNAs. This results in higher variability and diversity in the cellular proteome.The study from which this dataset is lifted looks into the global changes in RNA splicing that occurs after infection with a human virus.
+  Alternative splicing (AS) is a method of gene regulation in some Eukaryotes which modifies the sequence of RNA transcripts. Alternative Splicing changes the composition of the proteins resulting from the RNA transcripts through differential choice of exons included in mature mRNAs. This results in higher variability and diversity in the cellular proteome.The study from which this dataset is lifted looks into the global changes in RNA splicing that occurs after infection with a human virus.
 
+<ins>**Study Citation**</ins>:
 Boudreault S, Martenon-Brodeur C, Caron M, Garant JM, Tremblay MP, Armero VE, 
   Durand M, Lapointe E, Thibault P, Tremblay-Létourneau M, Perreault JP, Scott 
   MS, Lemay G, Bisaillon M. Global Profiling of the Cellular Alternative RNA 
@@ -47,7 +48,6 @@ theme_set(theme_bw())
 ## Bringing in the metadata_SRP074247.tsv file
 This is reading in the metadata into a data frame and doing some preliminary data cleaning, which includes separating values and using the janitor function to clean up the metadata.
 
-#:-)
 
 ```{r read files}
 
@@ -101,7 +101,6 @@ meta_clean
 ```
 ## Counts Matrix
 The counts matrix is a data frame which contains the actual data output from the RNA-seq experiment, and will be used for the differential gene expression analysis.
-_________________________________________________________________________________
 
 Reading in the counts matrix
 ```{r read counts matrix}
@@ -119,6 +118,8 @@ head(data)
 identical(colnames(data), meta_clean$sample_id)
 
 ```
+This boolean flag checks that the cleaned data matches the original data, which it does.
+
 ## Changing the Column Names
 This is renaming the columns created above for treatment type (infected or uninfected) and replicate number on the counts matrix
 
@@ -207,8 +208,9 @@ ggplot(data = data_long,
   
   scale_y_continuous(expand = c(0.01, 0))
 ```
+**Figure 1. A barplot assessing the quality of the dataset used.** For each gene expression profiling experiment, a good quality dataset will have 10-25 million reads per sample. As shown in the plot, all six samples are within the range desired.
 
-Boxplot of the number of reads by sample type
+
 ```{r boxplot}
 
 ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)),
@@ -233,6 +235,7 @@ ggplot(data = sum_by_sample |> group_by(treatment) |> summarize('sum' = sum(sum)
          
         
 ```
+**Figure 2. A Boxplot of the number of reads by sample type.** It is important to analyze the read counts between infected vs uninfected because if there are statistical differences, this will impact downstream biological interpretation.
 
 ## Evalutating statistical significance
 
@@ -244,6 +247,7 @@ Rather than conducting a T-test to establish statistical significance, we will u
 t.test(colSums(data) ~ meta_clean$treatment)
 
 ```
+The p-value is .2935, so there is **not** a significant difference between total number of counts by treatment group.
 
 ## Histogram of reads by gene
 
@@ -271,8 +275,9 @@ ggplot(data = sum_by_gene,
                                   size = 16))
 
 ```
+**Figure 3. A histogram of the sum number of reads across each gene.** This histogram is including low-abundance gene. There are six samples worth of read counts included in this histogram. 
 
-## Exclusing low abundance genes
+## Excluding low abundance genes
 ```{r exclude low abundance}
 
 high_abun_genes <-
@@ -309,7 +314,7 @@ ggplot(data = high_abun_sum,
 
 
 ```
-
+**Figure 4. A histogram of the sum number of reads across each gene.** This histogram is excluding low abundance genes, or genes with read counts of zero. There are six samples worth of read counts included in this histogram. 
 
 ```{r distribution per sample}
 
@@ -344,6 +349,7 @@ ggplot(data = high_abun_long,
 
 non_normal_graph
 ```
+**Figure 5. A non-normalized boxplot of the sum number of reads across each gene.** The boxplot provides insight into the distribution of read counts per sample. 
 
 ```{r}
 sample_names <- c('uninfected_1', 'uninfected_2', 'uninfected_3', 'infected_1', 'infected_2', 'infected_3')
@@ -370,7 +376,11 @@ plot(hclust(data_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 
 ```
+**Figure 6. A dendrogram comparing the similarity of read count data across the different samples based on non-normalized data. ** The three infected samples are most similar to one another, and the three uninfected samples are most similar to one another, which is to be expected.
 
+## Normalization
+
+Generating correction factors for the data where the median of each row is subtracted from the mean of the row. We then apply this correction factor to each sample.
 ```{r correction factors}
 
 sample_medians <- (apply(high_abun_log2_flipped, 2, median))
@@ -447,11 +457,15 @@ ggplot(data = norm_data_long,
 
 normal_graph
 ```
+**Figure 7.  A normalized boxplot of the sum number of reads across each gene.** The boxplot provides insight into the distribution of read counts per sample. 
+ 
 
 ```{r both boxplots}
 
 grid.arrange(non_normal_graph, normal_graph, ncol=2)
 ```
+**Figure 8. A side by side comparison of the non-normalized vs normalized counts boxplots, to see what difference the normalization made in the figure outcome. ** 
+
 
 ```{r normal tree}
 norm_log2 <-
@@ -466,6 +480,11 @@ norm_dist <- dist_setNames(norm_dist, sample_names)
 plot(hclust(norm_dist, method = "complete"), xlab = "Sample", main = NULL)
 
 ```
+**Figure 9. A dendrogram comparing the similarity of read count data across the different samples based on normalized data. ** The three infected samples are most similar to one another, and the three uninfected samples are most similar to one another, which is to be expected.
+
+## Principal Component Analysis
+Principle Component Analysis is a technique for analyzing large datasets with multiple features to be considered. By using PCA, one is able to maximize interpretability while maintaining the maximum amount of information. T
+
 ```{r pca}
 
 
@@ -475,8 +494,9 @@ autoplot(PCA, data = data_long, color = 'treatment', main = "Colored by Treatmen
 
 
 ```
+**Figure 10. PCA which colors by treatment.** This PCA1 gives a percentage of variance of 42.59%, which indicates 42.59% of the variance in the data can be explained based on this variable, and PCA2 gives a percentage of variance of 19.93%. These variables are the two strongest sources of variance in the sample set.
 
-
+## Creating a DESeq Object
 ```{r create dds}
 data_round <- 
   round(data.matrix(data))
@@ -493,16 +513,21 @@ dds <- DESeqDataSetFromMatrix(countData = data_round,
 
 
 ```
+
+## Pre-filtering DDS
+By pre-filtering the DESeq2 functions, we are able to eliminate rows with very few reads and therefore reduce the memory used by the dds object. This improves speed and visualization quality.
 ```{r prefilter dds}
 # pre-filter to remove low-read rows
 keep <- rowSums(counts(dds)) >= 10
 dds <- dds[keep,]
 ```
 
+We must choose a reference level for factors based on treatment type.
 ```{r reference level }
 dds$treatment <- relevel(dds$treatment, ref = "uninfected")
 ```
 
+## Running Differential Expression Analysis
 ```{r dds}
 # run Differential Expression Analysis
 dds <- DESeq(dds)
@@ -520,7 +545,9 @@ vsd <- vst(dds, blind=FALSE)
 plotPCA(vsd, intgroup=c("treatment")) + theme_classic() + scale_color_manual(values = colors)
 
 ```
+**Figure 11. Principal Component Analysis using variance stabilizing transformation (vst).** This data is transformed on a log2 scale and then normalized with respect of library size. The transformation is <ins>not blind</ins> because the experiment design has a large difference in counts between the treatment types, and blind dispersion estimates wil, overly shrink the values towards one another. This plot demonstrates a PCA based on the first two principle components of the data.
 
+## Hierarchical Clustering Heatmap
 ```{r heatmap}
 rld <- rlog(dds, blind=FALSE)
 rld_mat <- assay(rld)  
@@ -530,7 +557,9 @@ heat.colors <- brewer.pal(6, "Blues")
 pheatmap(rld_cor, color = heat.colors,
          breaks = c(0.97, 0.99, 0.995, 0.999, 0.9995, 0.99995))
 ```
+**Figure 12. A hierarchical clustering heatmap of the similarities between the read counts in each sample.** This heatmap is comparing the similarity of each sample to each other sample, and the darker blue the sample is, the more similar the two are to one another. The uninfected samples are most similar to one another, with uninfected_1 and uninfected_2 being the most similar to each other. The infected samples are each similarly different to one another, which is indicated in the lightest blue shade.
 
+## Tabular results
 ```{r table results}
 
 infected_n_res <- results(dds, contrast = c("treatment", "infected", "uninfected"))
@@ -551,7 +580,8 @@ names(infected_n_res_data)[1] <- "Ensembl_ID"
 head(res)
 ```
 
-
+## Gene ID Conversion
+We are converting gene IDs from Ensemble ID to symbols for a clearer picture
 ```{r get gene symbol name}
 
 ids <- as.character(infected_n_res_data$Ensembl_ID)
@@ -563,6 +593,7 @@ gene_list <- biomaRt::getBM(filter = 'ensembl_gene_id',
 
 ```
 
+Adding the new symbols to the dataset
 ```{r add symbol to datasets}
 
 infected_n_res_data <- merge(infected_n_res_data, gene_list, by.x="Ensembl_ID", by.y="ensembl_gene_id")
@@ -570,6 +601,7 @@ infected_n_res_data <- merge(infected_n_res_data, gene_list, by.x="Ensembl_ID", 
 infected_n_sig_data <- merge(infected_n_sig_data, gene_list, by.x="Ensembl_ID", by.y="ensembl_gene_id")
 
 ```
+
 
 ```{r}
 #output tabular files
@@ -585,12 +617,13 @@ write.csv(infected_n_sig_data,
           file = "infected_vs_uninfected_deg_padj0.05_log2fc1.csv")
 ```
 
+## Volcano Plot
 ```{r}
 EnhancedVolcano(infected_n_res_data,
                 lab = as.character(infected_n_res_data$uniprot_gn_symbol),
                 x = 'log2FoldChange',
                 y = 'padj', 
-                title = "SLE versus healthy controls",
+                title = "Infected Versus Uninfected Controls",
                 subtitle = "Differential expression",
                 caption = paste0("Upregulated = 330, Downregulated = 222"),
                 xlim = c(-10,10),
@@ -607,6 +640,7 @@ EnhancedVolcano(infected_n_res_data,
                 gridlines.major = FALSE,
                 gridlines.minor = FALSE)
 ```
+**Figure 13. A Volcano plot of the infected samples vs uninfected samples.** Log transformed adjusted p-values are plotted on the y-axis while the log2 fold change is plotted on the x-axis.  
 
 ```{r}
 # plotting upregulated gene
@@ -624,7 +658,7 @@ ggplot(d, aes(x = treatment, y = count, color = treatment)) +
        y = 'Count')
 
 ```
-
+**Figure 14. Demonstration of up-regulation using Ms4a4d gene.** There is much higher gene expression in the infected samples compared to the uninfected sample, indicating this gene's expression is impacted by virus-host interactions.
 ```{r}
 # plotting downregulated gene
 d <- plotCounts(dds, gene="ENSMUSG00000056328", intgroup="treatment", returnData=TRUE)
@@ -640,7 +674,11 @@ ggplot(d, aes(x = treatment, y = count, color = treatment)) +
        y = 'Count')
 
 ```
+**Figure 14. Demonstration of down-regulation using Myh1 gene.** There is much higher gene expression in the uninfected samples compared to the uninfected sample, indicating this gene's expression is impacted by virus-host interactions.
 
+## Pathway Analysis
+
+Gathering the top 20 differentially expressed genes in the dataset.
 ```{r}
 ## Order results by padj values
 top20_sigOE_genes <- infected_n_res_data |>
@@ -661,6 +699,7 @@ head(gathered_top20_sigOE)
 
 gathered_top20_sigOE <- inner_join(meta_clean, gathered_top20_sigOE)
 ```
+
 ```{r}
 ## plot using ggplot2
 
@@ -670,13 +709,16 @@ ggplot(data = gathered_top20_sigOE,
   scale_y_log10() +
   xlab("Gene") +
   ylab("log10 Normalized Counts") +
-  ggtitle("Top 20 Significant DE Genes") +
+  ggtitle("Top 20 Significant Differentially Expressed Genes") +
   theme_bw() +
   scale_color_manual(values = colors) +
       
 theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 theme(plot.title = element_text(hjust = 0.5))
 ```
+**Figure 15. Plot of the normalized read counts of the top 20 most significant differentially expressed genes in the dataset.**  
+
+To determine whether certain items are over or underrepresented, we are using a hypergeometric test to determine the probability of having our observed proportion of genes. The KEGG database is used to compare the data against a manually curated database. 
 ```{r}
 KEGG <- msigdb_gsets(species="Mus musculus", 
                      category="C2", 
@@ -699,6 +741,11 @@ hyp_dots(hyp_kegg,
          abrv=30, 
          val = "fdr")
 ```
+**Figure 16. Dot plot of the top enriched genesets from the KEGG database.** The color of the dot is indicative of its significance, and its size is indicative of its geneset size.
+
+
+## Hallmark Pathways
+Hallmark set summarized the information across multiple genesets, and reduced redundancy.
 ```{r}
 HALLMARK <- msigdb_gsets("Mus musculus", 
                          "H", 
@@ -719,6 +766,10 @@ hyp_dots(hyp_Hallmark,
          abrv=50, 
          val = "fdr")
 ```
+**Figure 17. Dot Plot based on the Hallmark database.** The color is indicative of the geneset significance, and its size is indicative of the geneset size. 
+
+
+## Gene Ontology (GO)
 ```{r}
 GOBP<- msigdb_gsets(species = "Mus musculus", 
                     "C5", 
@@ -738,6 +789,10 @@ hyp_GOBP <- hypeR(gene_list$uniprot_gn_symbol,
 #show top pathway
 hyp_dots(hyp_GOBP, title="GO: Biological Pathways", abrv=50, val = "fdr")
 ```
+**Figure 18. Gene Ontology biological pathway visualization.** This is referring to the biological role involving each gene. The color insicates the significance of the biologicak pathway, and the size of the dot indicates the geneset size. 
+
+
+## Separating Up- and Down- regulated DE Genes
 ```{r}
 up_degs <- subset(infected_n_sig_data, log2FoldChange > 0)
 up_degs <- up_degs$uniprot_gn_symbol
@@ -759,10 +814,12 @@ hyp_KEGG_up <- hypeR(up_degs,
 
 #show top pathway
 #plot_KEGG_up <- 
-  hyp_dots(hyp_KEGG_up, title="KEGG Pathways Upregulated in SLE patients", abrv=50, val = "fdr")
+  hyp_dots(hyp_KEGG_up, title="KEGG Pathways Upregulated in infected samples", abrv=50, val = "fdr")
 
 #ggsave("Dotplot_KEGG_upregulated.png")
 ```
+**Figure 19. Pathway analysis using only upregulated genes.**
+
 ```{r}
 # KEGG_down
 hyp_KEGG_down <- hypeR(down_degs, 
@@ -773,12 +830,16 @@ hyp_KEGG_down <- hypeR(down_degs,
                        plotting=TRUE)
 
 #plot_KEGG_down <- 
-hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in SLE patients", abrv=50, val = "fdr")
+hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in infected samples", abrv=50, val = "fdr")
 
 #ggsave("Dotplot_KEGG_downregulated.png")
 ```
+**Figure 20. Pathway analysis using only downregulated genes.**
+
 ```{r}
 # THIS WHERE WE AT BUT IT'S BEDTIME
+# TODO: Figure out how to get this to run
+# TODO: Get the figures in their own folder(?)
 sle_vs_n_gost <- gost(query = gene_list$uniprot_gn_symbol, 
                       organism = "mmusculus", 
                       sources = c("GO:BP", "KEGG", "REAC", "WP"),
