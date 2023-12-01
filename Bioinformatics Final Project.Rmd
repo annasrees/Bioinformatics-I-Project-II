@@ -29,13 +29,16 @@ knitr::opts_chunk$set(echo = TRUE,
 #install.packages('pacman')
 #install.packages(c("BiocManager", "RColorBrewer", "tidyverse", "devtools", "pheatmap", "gprofiler2"))
 #install.packages("genekitr")
+#install.packages("biomaRt")
 
 #BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR"))
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
                readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
                genekitr, clusterProfiler, EnhancedVolcano, ggfortify, biomartr,
-               hypeR, gprofiler2)
+               hypeR, gprofiler2, BiocManager)
+
+#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR", "biomaRt"))
 
 
 theme_set(theme_bw())
