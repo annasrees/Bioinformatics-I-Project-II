@@ -22,24 +22,21 @@ This data analysis uses additional packages beyond base R, which includes the pa
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE,
-                      warning = FALSE,
-                      message = FALSE,
+                      #warning = FALSE,
+                      #message = FALSE,
                       fig.align = "center",
                       fig.height = 8)
 
-install.packages('pacman')
-#install.packages(c("BiocManager", "RColorBrewer", "tidyverse", "devtools", "pheatmap", "gprofiler2"))
-#install.packages("genekitr")
-#install.packages("biomaRt")
 
-#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR"))
+if(!require('pacman')){install.packages("pacman", repos = "http://cran.us.r-project.org")}
 
 pacman::p_load(dplyr, ggplot2, DESeq2, tidyverse, forcats, 
                readr, usedist, gridExtra, DESeq2, RColorBrewer, pheatmap,
                genekitr, clusterProfiler, EnhancedVolcano, ggfortify, biomartr,
-               hypeR, gprofiler2, BiocManager)
+               hypeR, gprofiler2, BiocManager, DESeq2, org.Hs.eg.db, EnhancedVolcano,
+               biomaRt)
 
-BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR", "biomaRt"))
+#BiocManager::install(c("DESeq2", "org.Hs.eg.db", "EnhancedVolcano", "hypeR", "biomaRt"))
 
 
 theme_set(theme_bw())
@@ -94,7 +91,7 @@ meta_clean <-
   meta_clean |>
   filter(treatment %in% c('uninfected', 'infected')) |>
   mutate('sample' = paste(treatment, replicate, sep = "_")) |>
-  select(sample_ID, sample, title, treatment, replicate) |>
+  dplyr::select(sample_ID, sample, title, treatment, replicate) |>
   janitor::clean_names()
 
 meta_clean
@@ -109,7 +106,7 @@ data <- read.table(file = './Data/SRP074247/SRP074247.tsv',
            sep = '\t',
            header = TRUE,
            row.names = 1) |>
-  select(-c(SRR3471114, SRR3471115, SRR3471116))
+  dplyr::select(-c(SRR3471114, SRR3471115, SRR3471116))
 
 head(data)
 ```
@@ -156,7 +153,7 @@ data_long <-
   mutate(treatment = as.factor(treatment),
          replicate = as.factor(replicate)) |>
   
-  select(sample, treatment, replicate, gene, reads)
+  dplyr::select(sample, treatment, replicate, gene, reads)
 
 tibble(data_long)
 
@@ -284,7 +281,7 @@ high_abun_genes <-
   data_long |>
   pivot_wider(names_from = gene,
               values_from = reads) |>
-  select(where(~ all(. != 0)))
+  dplyr::select(where(~ all(. != 0)))
 
 high_abun_long <- 
   high_abun_genes |>
@@ -364,7 +361,7 @@ high_abun_log2 <-
               values_from = reads)
 
 high_abun_log2_flipped <-
-  data.frame(t(high_abun_log2 |> select(-c(treatment, replicate)))) |> janitor::row_to_names(row_number = 1) |>
+  data.frame(t(high_abun_log2 |> dplyr::select(-c(treatment, replicate)))) |> janitor::row_to_names(row_number = 1) |>
   mutate_all(function(x) as.numeric(as.character(x)))
 
 
@@ -421,7 +418,7 @@ norm_data_long <-
   mutate(treatment = as.factor(treatment),
          replicate = as.factor(replicate)) |>
   
-  select(sample, treatment, replicate, gene, normalized_reads)
+  dplyr::select(sample, treatment, replicate, gene, normalized_reads)
 ```
 
 ```{r normalized graph}
