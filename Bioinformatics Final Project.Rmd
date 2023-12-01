@@ -837,9 +837,6 @@ hyp_dots(hyp_KEGG_down, title="KEGG Pathways Downregulated in infected samples",
 **Figure 20. Pathway analysis using only downregulated genes.**
 
 ```{r}
-# THIS WHERE WE AT BUT IT'S BEDTIME
-# TODO: Figure out how to get this to run
-# TODO: Get the figures in their own folder(?)
 sle_vs_n_gost <- gost(query = gene_list$uniprot_gn_symbol, 
                       organism = "mmusculus", 
                       sources = c("GO:BP", "KEGG", "REAC", "WP"),
@@ -849,7 +846,7 @@ sle_vs_n_gost <- gost(query = gene_list$uniprot_gn_symbol,
 
 gostplot(sle_vs_n_gost, interactive = TRUE)
 ```
-
+**Figure 21. Gostplot Visualization of many pathways databases with gprofiler.** This is a statistical enrichment analysis which finds over-representation of information from various networks at the same time. The vector of sources used includes GO:BP, KEGG, REAC, and WP. 
 ```{r}
 # IDK WHAT THIS IS FOR
 REACTOME <- msigdb_gsets(species="Mus musculus", 
